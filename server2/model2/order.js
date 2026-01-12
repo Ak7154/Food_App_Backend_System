@@ -7,13 +7,17 @@ const Order = sequelize.define("order", {
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true,
   },
-
   totalAmount: {
     type: DataTypes.FLOAT,
+    allowNull: false,
   },
-
   status: {
     type: DataTypes.STRING,
+    defaultValue: "created",
+  },
+  source: {
+    type: DataTypes.STRING,
+    defaultValue: "server1",
   },
 });
 

@@ -7,22 +7,21 @@ const Product = sequelize.define("Product", {
     autoIncrement: true,
     primaryKey: true,
   },
-
   name: {
     type: DataTypes.STRING,
-    allowNull:false
-  
+    allowNull: false,
   },
-
+  category: {
+    type: DataTypes.STRING,
+    defaultValue: "general",
+  },
   price: {
     type: DataTypes.FLOAT,
-    allowNull:false
+    allowNull: false,
   },
-
-  description: {
-    type: DataTypes.STRING,
-    allowNull:false
-
+  available: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true,
   },
 });
 

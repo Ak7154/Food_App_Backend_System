@@ -5,19 +5,19 @@ const sequelize = new Sequelize(
   "root",               // username
   "amjath",      // password
   {
-    host: "localhost",
+    host: "localhost", // host
     dialect: "mysql",  //what we using database to sequelize
-    logging: false,
+    logging: false,  // its help us to dont show query in log
   }
 );
 
-const connectDB = async () => {
+const database = async () => {
   try {
     await sequelize.authenticate();
-    console.log(" server 1 Connected successfully");
+    console.log(" server 1 connected");
   } catch (error) {
-    console.error("server 1 Connection failed:", error.message);
+    console.error("server 1 Connection failed", error.message);
   }
 };
 
-module.exports = { sequelize, connectDB };
+module.exports = { sequelize, database };

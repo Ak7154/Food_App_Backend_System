@@ -1,24 +1,20 @@
 const { DataTypes } = require("sequelize");
 const { sequelize } = require("../dbConnection/db");
 
-const Order = sequelize.define("order", {
+const Orderitem = sequelize.define("orderitem", {
   id: {
     type: DataTypes.UUID,
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true,
   },
-  totalAmount: {
+    quantity: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    },
+    price: {
     type: DataTypes.FLOAT,
     allowNull: false,
-  },
-  status: {
-    type: DataTypes.STRING,
-    defaultValue: "created",
-  },
-  source: {
-    type: DataTypes.STRING,
-    defaultValue: "server1",
-  },
+    },
 });
 
-module.exports = Order;
+module.exports = Orderitem;

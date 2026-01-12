@@ -2,11 +2,12 @@ const { Sequelize } = require("sequelize");
 
 const sequelize = new Sequelize(
   "food_app_server2", // database name
-  "root",            // user name
-  "amjath",          // password
+  "root", // user name
+  "amjath", // password
   {
     host: "localhost",
     dialect: "mysql",
+    logging: false,
   }
 );
 
