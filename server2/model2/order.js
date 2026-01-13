@@ -7,6 +7,23 @@ const Order = sequelize.define("order", {
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true,
   },
+  userId: {
+    type: DataTypes.UUID,
+    allowNull: false,
+    references: {
+      model: "users",
+      key: "id",
+    },
+  },
+  productId: {
+    type: DataTypes.UUID,
+    allowNull: false,
+    references: {
+      model: "products",
+      key: "id",
+    },
+  },
+
   totalAmount: {
     type: DataTypes.FLOAT,
     allowNull: false,
@@ -17,7 +34,7 @@ const Order = sequelize.define("order", {
   },
   source: {
     type: DataTypes.STRING,
-    defaultValue: "server1",
+    defaultValue: "server2",
   },
 });
 

@@ -1,4 +1,5 @@
 const { Sequelize } = require("sequelize");
+const logger=require("../logger")
 
 const sequelize = new Sequelize(
   "food_app_server2", // database name
@@ -14,9 +15,9 @@ const sequelize = new Sequelize(
 const connectDB = async () => {
   try {
     await sequelize.authenticate();
-    console.log("server 2 Connected successfully");
+    logger.info("server 2 Connected successfully")
   } catch (error) {
-    console.error("server 2 Connection failed:", error.message);
+    logger.error("server 2 Connection failed:", error.message);
   }
 };
 

@@ -1,118 +1,134 @@
-express = require("express");
+const express = require("express");
 const axios = require("axios");
-const { Order } = require("../model2");
-
 const router = express.Router();
+const { Order, User, Product } = require("../model2");
+const logger = require("../logger");
 
 router.post("/", async (req, res) => {
-try {
-    const { id, totalAmount, status, source } = req.body;
+  try {
+    const { id, userId, productId, totalAmount, status, source } = req.body;
 
-    console.log("[SERVER-2] Create order request received");
+    logger.info("server-2 order creation received");
 
-    // validation
-    if (!totalAmount) {
-      console.log("[SERVER-2] Validation failed");
-      return res.status(400).json({ message: "Total amount required" });
+    if (!totalAmount || !userId || !productId) {
+      logger.error("server-2 validation failed");
+      return res.status(400).json({
+        message: "required userid and productId and totalamount",
+      });
     }
 
-    // create order locally
+    const user = await User.findByPk(userId);
+    if (!user) {
+      logger.error("server-2 User not found");
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const product = await Product.findByPk(productId);
+    if (!product) {
+      logger.error("server-1 Product not found");
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    logger.info("server-2 Order creating");
+
     const order = await Order.create({
       id,
+      userId,
+      productId,
       totalAmount,
       status,
       source,
     });
 
-    console.log("[SERVER-2] Order created locally:", order.id);
+    logger.info("server-2 Order created");
 
-    // sync to server 2 only if source is not server2
     if (source !== "server1") {
-      console.log("[SERVER-2] Syncing order to Server 2");
+      logger.info("server-2 Syncing order to Server 1");
+
       await axios.post("http://localhost:5001/api/orders", {
-        id: id,
-        totalAmount,
-        status,
-        source : "server2",
+        id: order.id,
+        userId: order.userId,
+        productId: order.productId,
+        totalAmount: order.totalAmount,
+        status: order.status,
+        source: "server1",
       });
 
-      console.log("[SERVER-2] Order synced to Server 2");
+      logger.info("server-2 Order synced to Server 2");
     }
 
     res.status(201).json(order);
   } catch (error) {
-    console.error("[SERVER-2] Error:", error.message);
-    res.status(500).json({ message: "Internal error" });
+    logger.error(`server-2 order creation Error: ${error.message}`);
+    res.status(500).json({ message: "something error inside" });
   }
 });
 
+// update order
 router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const { totalAmount, status, source } = req.body;
 
-    console.log("[SERVER-2] Update order request:", id);
-
     const order = await Order.findByPk(id);
 
     if (!order) {
-      console.log("[SERVER-2] Order not found");
+      logger.info("server-2 Order not found");
       return res.status(404).json({ message: "Order not found" });
     }
-
-    // update locally
-    if (totalAmount !== undefined) order.totalAmount = totalAmount;
-    if (status) order.status = status;
+    order.totalAmount = totalAmount;
+    order.status = status;
 
     await order.save();
-    console.log("[SERVER-2] Order updated locally");
+    logger.info("server-2 Order updated locally");
 
     // sync update to server2
     if (source !== "server1") {
-      console.log("[SERVER-2] Syncing update to Server 1");
-      await axios.put(`http://localhost:5001/api/orders/${id}`, {
-        totalAmount,
-        status,
-        source : "server2",
-      });
+      logger.info("[SERVER-2] Syncing update to Server 1");
 
-      console.log("[SERVER-2] Update synced to Server 1");
+      const sources = { source: "server2" };
+      sources.totalAmount = totalAmount;
+      sources.status = status;
+
+      await axios.put(`http://localhost:5001/api/orders/${id}`, sources);
     }
 
     res.json(order);
   } catch (error) {
-    console.error("[SERVER-2] Update error:", error.message);
+    logger.error("server-2 Update error:", error.message);
     res.status(500).json({ message: "Internal error" });
   }
 });
+
+// router
 router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { source } = req.body;
-
-    console.log("server-2 Delete request");
+    const { source } = req.query;
 
     const order = await Order.findByPk(id);
-
     if (!order) {
       return res.status(404).json({ message: "no order found" });
     }
 
     await order.destroy();
-    console.log("server-2 Order deleted ");
+    logger.info("server-2 Order deleted ");
 
     if (source !== "server1") {
-      console.log("server-2 Syncing delete to Server 1");
+      logger.info("server-2 Syncing product delete to server-1");
 
-      await axios.delete(`http://localhost:5001/api/orders/${id}`, {
-        source: "server2",
-      });
+      try {
+        await axios.delete(
+          `http://localhost:5001/api/order/${id}?source=server1`
+        );
+      } catch (syncErr) {
+        logger.error("Product delete sync failed:", syncErr.message);
+      }
     }
-
-    res.json({ message: "Order deleted" });
+    return res.json({ message: "Order deleted" });
   } catch (error) {
-    console.error("server-2 Delete error:")
-    res.status(500).json({ message: "Internal error" });
+    logger.error("server-2 Delete error:");
+    res.status(500).json({ message: "Internal error" })
   }
 });
 

@@ -3,8 +3,8 @@ const { sequelize } = require("../dbConnection/db");
 
 const Product = sequelize.define("Product", {
   id: {
-    type: DataTypes.INTEGER,
-    autoIncrement: true,
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
     primaryKey: true,
   },
   name: {
@@ -13,7 +13,7 @@ const Product = sequelize.define("Product", {
   },
   category: {
     type: DataTypes.STRING,
-    allowNull: false,
+    defaultValue: "veg",
   },
   price: {
     type: DataTypes.FLOAT,
