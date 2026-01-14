@@ -23,9 +23,8 @@ const Order = sequelize.define("order", {
       key: "id",
     },
   },
-
   totalAmount: {
-    type: DataTypes.FLOAT,
+    type: DataTypes.INTEGER,
     allowNull: false,
   },
   status: {

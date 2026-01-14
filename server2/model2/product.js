@@ -16,12 +16,12 @@ const Product = sequelize.define("Product", {
     defaultValue: "veg",
   },
   price: {
-    type: DataTypes.FLOAT,
+    type: DataTypes.INTEGER,
     allowNull: false,
   },
   available: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: true,
+    type: DataTypes.STRING,
+    defaultValue:"not available",
   },
 });
 

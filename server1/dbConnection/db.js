@@ -1,12 +1,12 @@
 const { Sequelize } = require("sequelize");
-const logger = require("../logger")
+const logger = require("../logger");
 
 const sequelize = new Sequelize(
-  "food_app_server1", // DB name
-  "root", // username
-  "amjath", // password
+  process.env.DB_NAME, // DB name
+  process.env.DB_USER, // username
+  process.env.DB_PASSWORD, // password
   {
-    host: "localhost", // host
+    host: process.env.DB_HOST, // host
     dialect: "mysql", //what we using database to sequelize
     logging: false, // its help us to dont show query in log
   }
@@ -17,7 +17,7 @@ const database = async () => {
     await sequelize.authenticate();
     logger.info("server 1 connected");
   } catch (error) {
-    logger.error("server 1 Connection failed", error.message)
+    logger.error("server 1 Connection failed", error.message);
   }
 };
 

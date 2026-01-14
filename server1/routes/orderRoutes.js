@@ -3,16 +3,18 @@ const axios = require("axios");
 const router = express.Router();
 const { Order, User, Product } = require("../model1");
 const logger = require("../logger");
+const { verifyToken } = require("../authormiddleware/authmiddle");
 
 //creating order
 
-router.post("/", async (req, res) => {
+router.post("/", verifyToken, async (req, res) => {
   try {
     const { id, userId, productId, totalAmount, status, source } = req.body;
 
     logger.info("server-1 order creation received");
 
-    if (!totalAmount || !userId || !productId) {
+    // validation
+    if (totalAmount == null || !userId || !productId) {
       logger.error("server-1 validation failed");
       return res.status(400).json({
         message: "required userid and productId and totalamount",
@@ -33,18 +35,26 @@ router.post("/", async (req, res) => {
 
     logger.info("server-1 Order creating");
 
-    const order = await Order.create({
-      id,
+    const orderData = {
+
       userId,
       productId,
       totalAmount,
       status,
-      source,
-    });
+      source: source || "server1",
+    };
+
+    if (id) {
+      orderData.id = id;
+    }
+
+    const order = await Order.create(orderData);
 
     logger.info("server-1 Order created");
 
-    if (source !== "server2") {
+    // sync to srver-2
+    if (orderData.source !== "server2") {
+      // this one help from the infinite loop
       logger.info("server-1 Syncing order to Server 2");
 
       await axios.post("http://localhost:5002/api/orders", {
@@ -61,32 +71,32 @@ router.post("/", async (req, res) => {
 
     res.status(201).json(order);
   } catch (error) {
-    logger.error(`server-1 order creation Error: ${error.message}`)
+    logger.error(`server-1 order creation Error: ${error.message}`);
     res.status(500).json({ message: "something error inside" });
   }
 });
 
-
 //updating order
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { totalAmount, status, source } = req.body;
 
-  logger.info("server-1 Update order request received");
+    logger.info("server-1 order update received");
 
     const order = await Order.findByPk(id);
+
     if (!order) {
       logger.info("server-1 no order found");
       return res.status(404).json({ message: "no order found" });
     }
-
-    order.totalAmount = totalAmount;
+    logger.info("server-1 order updating");
+    order.totalAmount = totalAmount; //allowed state only change
     order.status = status;
 
     await order.save();
-    logger.info("server-1 Order updated locally");
+    logger.info("server-1 Order updated");
 
     if (source !== "server2") {
       logger.info("server-1 Syncing update to Server 2");
@@ -98,6 +108,7 @@ router.put("/:id", async (req, res) => {
         source: "server1",
       });
     }
+    logger.info("server-1 order updated synced to server-2")
     res.json(order);
   } catch (error) {
     logger.error("server-1 Update error:", error.message);
@@ -107,10 +118,10 @@ router.put("/:id", async (req, res) => {
 
 //deleting order
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { source } = req.query;
+    const { source } = req.body;
 
     logger.info("server-1 Delete request");
 
@@ -120,19 +131,25 @@ router.delete("/:id", async (req, res) => {
     }
 
     await order.destroy();
-    logger.info("server-1 Order deleted ");
+    logger.info("server-1 Order deleted");
+
+    // sync delete to server 2 
 
     if (source !== "server2") {
-      console.log("server-1 Syncing delete to Server 2");
+      logger.info("server-1 Syncing delete to Server 2");
 
-      await axios.delete(
-        `http://localhost:5002/api/orders/${id}?source=server2`
-      );
+      try {
+        await axios.delete(`http://localhost:5002/api/orders/${id}`, {
+          data: { source: "server2" },
+        });
+      } catch (syncErr) {
+        logger.error("Product delete sync failed:", syncErr.message);
+      }
     }
-
+    logger.info("server-1 synced delete in server-2")
     res.json({ message: "Order deleted" });
   } catch (error) {
-    logger.error("server-1 Delete error:");
+    logger.error("server-1 Delete error", error.message);
     res.status(500).json({ message: "something error inside" });
   }
 });

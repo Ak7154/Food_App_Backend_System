@@ -1,52 +1,83 @@
 const express = require("express");
-const axios = require("axios");
 const router = express.Router();
+const axios = require("axios");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 const { User } = require("../model1");
-const logger = require("../logger")
 
-router.post("/", async (req, res) => {
+
+//registering the user
+
+router.post("/register", async (req, res) => {
   try {
-    const { id, name, email, role, source } = req.body
+    const { id, name, email, password, role, source } = req.body;
 
-    logger.info("server-1 user create request");
-
-    if (!name || !email) {
-      return res.status(400).json({
-        message: "Name and email are required",
-      });
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password required" });
     }
 
-    // Create locally, accept ID if coming from Server-2
+    const existingUser = await User.findOne({ where: { email } });
+    if (existingUser) {
+      return res.status(409).json({ message: "User already exists" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await User.create({
       id,
       name,
       email,
+      password: hashedPassword,
       role,
     });
 
-    logger.info("server-1 User created locally");
-
-    // Sync to Server-2 only if not coming from Server-2
+    //syncing
 
     if (source !== "server2") {
-      logger.info("server-1 Syncing user to Server-2");
-
-      await axios.post("http://localhost:5002/api/users", {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
+      await axios.post(`http://localhost:5002/api/users/register`, {
+        id:user.id,
+        name,
+        email,
+        password:hashedPassword, // send hashed password
+        role,
         source: "server1",
       });
-
-      logger.info("server-1  User synced to Server-2");
     }
 
-    res.status(201).json(user);
-  } catch (error) {
-    logger.error("server-1 User error:", error.message);
-    res.status(500).json({ message: "Internal error" });
+    return res
+      .status(201)
+      .json({ message: "User registered successfully", user });
+  } catch (err) {
+    console.error("User registration error:", err);
+    return res.status(500).json({ message: "Registration failed" });
+  }
+});
+
+// login by user
+
+router.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    const token = jwt.sign(
+      { userId: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    return res.json({ token });
+  } catch (err) {
+    return res.status(500).json({ message: "Login failed" });
   }
 });
 

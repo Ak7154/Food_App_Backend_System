@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
 const { connectDB, sequelize } = require("./dbConnection/db");
@@ -5,7 +7,6 @@ const orderRoutes = require("./routes/orderRoutes");
 const userRoutes = require("./routes/userRoutes");
 const productRoutes = require("./routes/productRoutes");
 const logger = require("./logger")
-require("./model2");
 
 const app = express();
 

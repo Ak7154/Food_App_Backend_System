@@ -3,54 +3,54 @@ const axios = require("axios");
 const router = express.Router();
 const { Product } = require("../model2");
 const logger = require("../logger")
+const { verifyToken } = require("../authormiddleware/authmiddle");
 
-router.post("/", async (req, res) => {
+router.post("/", verifyToken, async (req, res) => {
   try {
     const { id, name, price, category, available, source } = req.body;
 
-    logger.info("server-2 Product create request");
+    logger.info(" server-2 Product create request");
 
-    if (!name || price == null) {
-      return res.status(400).json({
-        message: "Name and price are required",
-      });
+    if (!name || !price) {
+      return res.status(400).json({ message: "Name and price are required" });
     }
 
-    // Server-2 accepts ID if coming from Server-1
     const product = await Product.create({
       id,
       name,
       category,
       price,
-      available,
-      source,
+      available
     });
 
-    logger.info("server-2 Product created locally:", product.id);
-
-    // Sync to Server-1 only if not coming from Server-1
     if (source !== "server1") {
-      logger.info("server-2  Syncing product to Server-1");
+      try {
+        logger.info("server-2 Syncing product to Server 1");
 
-      await axios.post("http://localhost:5001/api/products", {
-        id: product.id,
-        name: product.name,
-        price: product.price,
-        description: product.description,
-        source: "server2",
-      });
+        await axios.post("http://localhost:5001/api/products", {
+          id: product.id,
+          name: product.name,
+          category: product.category,
+          price: product.price,
+          available: product.available,
+          source: "server2",
+        });
 
-      logger.info("server-2 Product synced to Server-1");
+        logger.info("server-2 Product synced to Server 1");
+      } catch (syncErr) {
+        logger.error("server-1 Product sync failed: " + syncErr.message);
+      }
     }
 
-    res.status(201).json(product);
+    return res.status(201).json(product);
   } catch (error) {
-    logger.error("server-2 Product error:", error.message);
-    res.status(500).json({ message: "Internal error" })
+    logger.error("server-1 Product create error: " + error.message);
+    return res.status(500).json({ message: "Internal server error" });
   }
 });
 
-router.put("/:id", async (req, res) => {
+
+router.put("/:id", verifyToken,async (req, res) => {
   try {
     const { id } = req.params;
     const { name, price, category, available, source } = req.body
@@ -68,6 +68,7 @@ router.put("/:id", async (req, res) => {
 
     
     if (source !== "server1") {
+      logger.info("server2 syncing with server1")
       await axios.put(`http://localhost:5001/api/products/${id}`, {
         id: product.id,
         name: product.name,
@@ -77,6 +78,7 @@ router.put("/:id", async (req, res) => {
         source: "server2",
       });
     }
+    logger.info("server2 synced with server1")
     res.status(200).json(product)
   } catch (error) {
     logger.error("server-2 Error:", error.message);
@@ -85,12 +87,13 @@ router.put("/:id", async (req, res) => {
   
 });
 
-router.delete("/:id", async (req, res) => {
+// SERVER 2
+router.delete("/:id", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { source} = req.query;
+    const { source } = req.body;
 
-    logger.info("server-1 Product delete request");
+    logger.info("server-2 Product delete request");
 
     const product = await Product.findByPk(id);
     if (!product) {
@@ -98,30 +101,29 @@ router.delete("/:id", async (req, res) => {
     }
 
     await product.destroy();
-    logger.info("server-1 Product deleted");
+    logger.info("server-2 Product deleted");
 
-    // 🔁 sync to server-2
+    // sync to server-1
     if (source !== "server1") {
-      logger.info("server-1 Syncing product delete to server-2");
+      logger.info("server-2 Syncing product delete to server-1");
 
       try {
         await axios.delete(
-          `http://localhost:5001/api/products/${id}?source=server1`
+          `http://localhost:5001/api/products/${id}`,
+          { data: { source: "server2" } }
         );
       } catch (syncErr) {
-        logger.error("Product delete sync failed:", syncErr.message);
+        logger.error("server-2 Product delete sync ");
       }
     }
 
     return res.json({ message: "Product deleted" });
 
   } catch (error) {
-    logger.error("server-1 Product delete error:", error.message);
-
-    if (res.headersSent) return;
-    return res.status(500).json({ message: "something error inside" });
+    logger.error(`server-2 Product delete error: ${error.message}`);
   }
 });
+
 
 
 

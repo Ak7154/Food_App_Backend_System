@@ -1,22 +1,30 @@
 const { createLogger, format, transports } = require("winston");
 const path = require("path");
 
+const logFormat = format.combine(
+  format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
+  format.printf(
+    (info) => `${info.timestamp} [${info.level.toUpperCase()}]: ${info.message}`
+  )
+);
+
 const logger = createLogger({
   level: "info",
-  format: format.combine(
-    format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
-    format.printf(
-      (info) => `[${info.timestamp}] [${info.level.toUpperCase()}] ${info.message}`
-    )
-  ),
+  format: logFormat,
   transports: [
-    new transports.Console(), // log to console
+    // info log
     new transports.File({
-      filename: path.join(__dirname, "../logs/server.log"),
+      filename: path.join(__dirname, "../logs/info.log"),
       level: "info",
-      maxsize: 5 * 1024 * 1024,
-      maxFiles: 5,
     }),
+    // error log
+    new transports.File({
+      filename: path.join(__dirname, "../logs/error.log"),
+      level: "error",
+    }),
+
+    //console
+    new transports.Console(),
   ],
 });
 
