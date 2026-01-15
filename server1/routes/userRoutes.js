@@ -3,8 +3,30 @@ const router = express.Router();
 const axios = require("axios");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const { User } = require("../model1");
+const { User, Order } = require("../model1");
 
+// to get order details
+router.get("/:id", async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const user = await User.findOne({
+      where: { id: userId }, //filters user table by matching userid
+      include: [
+        {
+          model: Order, // Order association
+          attributes: ["id", "userId", "productId", "totalAmount", "status"],
+        },
+      ],
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.status(200).json(user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 
 //registering the user
 
@@ -35,10 +57,10 @@ router.post("/register", async (req, res) => {
 
     if (source !== "server2") {
       await axios.post(`http://localhost:5002/api/users/register`, {
-        id:user.id,
+        id: user.id,
         name,
         email,
-        password:hashedPassword, // send hashed password
+        password: hashedPassword, // send hashed password
         role,
         source: "server1",
       });
